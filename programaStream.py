@@ -79,11 +79,15 @@ def guardar_datos(estado):
         # Forzamos la limpieza de cache antes de intentar el update
         st.cache_data.clear()
         
-        try:
+    try:
+        # Todo lo que está acá abajo tiene que estar alineado a la misma altura
         conn.update(worksheet="Tabla", data=df_tabla)
-        st.success("¡Guardó Tabla!")
+        conn.update(worksheet="Historial", data=df_historial)
+        conn.update(worksheet="Plantel", data=df_plantel)
+        
+        st.success("🔥 ¡Sincronizado con Google Sheets!")
     except Exception as e:
-        st.error(f"GOOGLE DIJO: {e}")
+        st.error(f"Error real detectado: {e}")
 
 if 'db' not in st.session_state:
     try:
