@@ -90,7 +90,7 @@ def guardar_datos(estado):
 
 if 'db' not in st.session_state:
     try:
-        # Forzamos ttl=0 para que no use memoria vieja
+        # Leemos con ttl=0 para evitar que use datos viejos
         df_t = conn.read(worksheet="Tabla", ttl=0)
         df_h = conn.read(worksheet="Historial", ttl=0)
         df_p = conn.read(worksheet="Plantel", ttl=0)
@@ -101,10 +101,8 @@ if 'db' not in st.session_state:
             "fecha_actual": len(df_h) + 1,
             "plantel": df_p.set_index('ID').to_dict('list')
         }
-        st.sidebar.success("✅ Conectado al Sheets")
     except Exception as e:
-        st.sidebar.error(f"❌ Error de conexión: {e}")
-        # Solo si falla la conexión, carga los datos por defecto para que no se rompa la app
+        # Si da error 400, cargamos los datos por defecto
         st.session_state.db = {
             "fecha_actual": 1,
             "historial": [],
