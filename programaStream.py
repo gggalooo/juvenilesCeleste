@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-from streamlit_gsheets import GSheetsConnection
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -55,8 +54,16 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Conexión con Google Sheets
-conn = st.connection("gsheets", type=GSheetsConnection, ttl=0)
+# --- CONEXIÓN CON GSPREAD ---
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1BkBD5F1F5PZ27KND_7cJMIvy9-s5wtKXP7hQKwAqDNA/edit"
+
+def get_gspread_client():
+    creds = Credentials.from_service_account_info(
+        st.secrets["connections"]["gsheets"],
+        scopes=["https://spreadsheets.google.com/feeds",
+                "https://www.googleapis.com/auth/drive"]
+    )
+    return gspread.authorize(creds)
 
 class Liga:
     def __init__(self):
@@ -70,41 +77,50 @@ class Liga:
         self.fixture_completo = r1 + [(r, not l) for r, l in r1]
 
 def guardar_datos(estado):
-    df_tabla = pd.DataFrame(estado["tabla"]).T.reset_index().rename(columns={'index': 'Equipo'})
-    df_historial = pd.DataFrame(estado["historial"])
-    datos_p = []
-    for k, v in estado["plantel"].items():
-        datos_p.append([k] + v)
-    df_plantel = pd.DataFrame(datos_p, columns=['ID', 'Nombre', 'PJ', 'Goles', 'Asist', 'Amarillas', 'Rojas', 'MVP', 'Vallas'])
-
     try:
-        # 1. Limpiamos caché
-        st.cache_data.clear()
-        
-        # 2. Actualizamos las 3 hojas (Cuidado con los nombres exactos en el Excel)
-        conn.update(worksheet="Tabla", data=df_tabla)
-        conn.update(worksheet="Historial", data=df_historial)
-        conn.update(worksheet="Plantel", data=df_plantel)
-        
+        gc = get_gspread_client()
+        sh = gc.open_by_url(SPREADSHEET_URL)
+
+        # Guardar Tabla
+        df_tabla = pd.DataFrame(estado["tabla"]).T.reset_index().rename(columns={'index': 'Equipo'})
+        ws = sh.worksheet("Tabla")
+        ws.clear()
+        ws.update([df_tabla.columns.tolist()] + df_tabla.values.tolist())
+
+        # Guardar Historial
+        df_historial = pd.DataFrame(estado["historial"])
+        ws2 = sh.worksheet("Historial")
+        ws2.clear()
+        if not df_historial.empty:
+            ws2.update([df_historial.columns.tolist()] + df_historial.values.tolist())
+
+        # Guardar Plantel
+        datos_p = [[k] + v for k, v in estado["plantel"].items()]
+        df_plantel = pd.DataFrame(datos_p, columns=['ID','Nombre','PJ','Goles','Asist','Amarillas','Rojas','MVP','Vallas'])
+        ws3 = sh.worksheet("Plantel")
+        ws3.clear()
+        ws3.update([df_plantel.columns.tolist()] + df_plantel.values.tolist())
+
         st.success("🔥 ¡Sincronizado con Google Sheets!")
     except Exception as e:
         st.error(f"Error real detectado: {e}")
 
 if 'db' not in st.session_state:
     try:
-        # Leemos con ttl=0 para evitar que use datos viejos
-        df_t = conn.read(worksheet="Tabla", ttl=0)
-        df_h = conn.read(worksheet="Historial", ttl=0)
-        df_p = conn.read(worksheet="Plantel", ttl=0)
-        
+        gc = get_gspread_client()
+        sh = gc.open_by_url(SPREADSHEET_URL)
+
+        df_t = pd.DataFrame(sh.worksheet("Tabla").get_all_records())
+        df_h = pd.DataFrame(sh.worksheet("Historial").get_all_records())
+        df_p = pd.DataFrame(sh.worksheet("Plantel").get_all_records())
+
         st.session_state.db = {
             "tabla": df_t.set_index('Equipo').to_dict('index'),
             "historial": df_h.to_dict('records'),
             "fecha_actual": len(df_h) + 1,
-            "plantel": df_p.set_index('ID').to_dict('list')
+            "plantel": {str(r['ID']): [r['Nombre'],r['PJ'],r['Goles'],r['Asist'],r['Amarillas'],r['Rojas'],r['MVP'],r['Vallas']] for _, r in df_p.iterrows()}
         }
     except Exception as e:
-        # Si da error 400, cargamos los datos por defecto
         st.session_state.db = {
             "fecha_actual": 1,
             "historial": [],
@@ -120,6 +136,7 @@ if 'db' not in st.session_state:
                 "23": ["Manu", 0,0,0,0,0,0,0]
             }
         }
+
 def procesar_tabla(e1, g1, e2, g2):
     t = st.session_state.db["tabla"]
     for e, gf, gc in [(e1, g1, g2), (e2, g2, g1)]:
@@ -144,7 +161,6 @@ jugadores_lista = [f"{n}-{d[0]}" for n, d in plantel_dict.items()]
 
 if menu == "🏠 INICIO":
     st.header("⚽ BIENVENIDO A LA BASE DE DATOS DE JUVENILES CELESTE")
-    # Banner desde carpeta /img
     if os.path.exists("img/banner.png"):
         st.image("img/banner.png", use_container_width=True)
     else:
@@ -176,14 +192,11 @@ elif menu == "🏆 TABLA":
 elif menu == "👤 PLANTEL":
     st.header("📊 ESTADÍSTICAS DEL PLANTEL")
     
-    # --- 1. LÓGICA DE LÍDERES (SOPORTA EMPATES) ---
     jugadores_campo = {k: v for k, v in plantel_dict.items() if k != "1"}
     
-    # Máximos Goleadores
     max_goles = max(v[2] for v in jugadores_campo.values())
     goleadores = [v[0] for v in jugadores_campo.values() if v[2] == max_goles and max_goles > 0]
     
-    # Máximos Asistidores
     max_asist = max(v[3] for v in jugadores_campo.values())
     asistidores = [v[0] for v in jugadores_campo.values() if v[3] == max_asist and max_asist > 0]
 
@@ -197,7 +210,6 @@ elif menu == "👤 PLANTEL":
 
     st.divider()
 
-    # --- 2. TABLA GENERAL INTERACTIVA ---
     st.subheader("📋 Ficha General de Jugadores")
     st.write("Clickeá en los encabezados para ordenar la tabla:")
     
@@ -207,19 +219,17 @@ elif menu == "👤 PLANTEL":
             "NRO": int(nro),
             "JUGADOR": d[0],
             "PJ": d[1],
-            "GOLES": d[2] if nro != "1" else "-", # El arquero no suele llevar goles
+            "GOLES": d[2] if nro != "1" else "-",
             "ASIST": d[3] if nro != "1" else "-",
             "V. INVICTAS": d[7] if nro == "1" else "-",
             "MVP": d[6]
         })
     
     df_plantel = pd.DataFrame(datos_tabla)
-    # Mostramos con st.dataframe para que el usuario pueda ordenar haciendo clic
     st.dataframe(df_plantel, use_container_width=True, hide_index=True)
 
     st.divider()
     
-    # --- 3. BÚSQUEDA INDIVIDUAL (Mantenida por si querés ver detalle) ---
     sel = st.selectbox("Detalle individual por jugador:", jugadores_lista)
     nro_sel = sel.split("-")[0]
     s = plantel_dict[nro_sel]
@@ -249,13 +259,11 @@ elif menu == "⚠️ TARJETAS":
     st.header("⚠️ CONTROL DE DISCIPLINARIOS")
     data_disc = [{"NRO": k, "NOMBRE": v[0], "AMARILLAS": v[4], "ROJAS": v[5]} for k, v in plantel_dict.items()]
     df_disc = pd.DataFrame(data_disc).sort_values(by="AMARILLAS", ascending=False)
-    # hide_index=True elimina esa primera columna de números
     st.dataframe(df_disc, use_container_width=True, hide_index=True)
 
 elif menu == "📝 CARGAR FECHA":
     st.header("📝 REGISTRO DE DATOS (SOLO ADMIN)")
     
-    # --- SISTEMA DE SEGURIDAD ---
     password = st.text_input("Introduzca la clave para editar:", type="password")
     
     if password == st.secrets["auth"]["admin_password"]:
@@ -274,7 +282,6 @@ elif menu == "📝 CARGAR FECHA":
                 
                 quienes = st.multiselect("¿Quiénes jugaron?", jugadores_lista)
                 
-                # --- AQUÍ ESTABA EL ERROR: RESTAURANDO SELECTORES DE GOLES ---
                 g_dict = {}; a_dict = {}
                 if g_reg > 0:
                     st.write("--- DETALLE DE GOLES ---")
@@ -293,11 +300,9 @@ elif menu == "📝 CARGAR FECHA":
                 if st.button("GUARDAR FECHA REGATAS"):
                     procesar_tabla("Regatas Celeste", g_reg, rival, g_riv)
                     
-                    # Guardar en historial para el inicio
                     if "historial" not in st.session_state.db: st.session_state.db["historial"] = []
                     st.session_state.db["historial"].append({"rival": rival, "g_reg": g_reg, "g_riv": g_riv})
                     
-                    # Sumar estadísticas a jugadores
                     for p in quienes: plantel_dict[p.split("-")[0]][1] += 1
                     for p, c in g_dict.items(): plantel_dict[p.split("-")[0]][2] += c
                     for p, c in a_dict.items(): plantel_dict[p.split("-")[0]][3] += c
@@ -305,7 +310,6 @@ elif menu == "📝 CARGAR FECHA":
                     for p in roj: plantel_dict[p.split("-")[0]][5] += 1
                     plantel_dict[mvp.split("-")[0]][6] += 1
                     
-                    # Valla invicta para el Toro (#1)
                     if g_riv == 0 and "1" in [px.split("-")[0] for px in quienes]:
                         if len(plantel_dict["1"]) < 8: plantel_dict["1"].append(0)
                         plantel_dict["1"][7] += 1
