@@ -206,16 +206,10 @@ def forma_reciente(historial, n=5):
 # ==========================================
 # --- 6. SIDEBAR ---
 # ==========================================
-if os.path.exists("img/logo.png"):
-    st.sidebar.image("img/logo.png", use_container_width=True)
-else:
-    st.sidebar.markdown("""
-        <div style='text-align:center; padding: 10px 0 20px 0;'>
-            <div style='font-size: 52px;'>⚓</div>
-            <h2 style='color:white; margin:0;'>REGATAS</h2>
-            <p style='color:#00aae4; margin:0; font-size:11px; letter-spacing:3px;'>JUVENILES CELESTE</p>
-        </div>
-    """, unsafe_allow_html=True)
+st.sidebar.markdown("""
+    <div style='text-align:center; padding: 10px 0 20px 0;'>
+        <div style='font-size: 52px;'>⚓</div>
+        ...
         <h2 style='color:white; margin:0;'>REGATAS</h2>
         <p style='color:#00aae4; margin:0; font-size:11px; letter-spacing:3px;'>JUVENILES CELESTE</p>
     </div>
