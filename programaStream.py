@@ -76,11 +76,10 @@ def guardar_datos(estado):
     df_plantel = pd.DataFrame(datos_p, columns=['ID', 'Nombre', 'PJ', 'Goles', 'Asist', 'Amarillas', 'Rojas', 'MVP', 'Vallas'])
 
     try:
-        # Forzamos la limpieza de cache antes de intentar el update
+        # 1. Limpiamos caché
         st.cache_data.clear()
         
-    try:
-        # Todo lo que está acá abajo tiene que estar alineado a la misma altura
+        # 2. Actualizamos las 3 hojas (Cuidado con los nombres exactos en el Excel)
         conn.update(worksheet="Tabla", data=df_tabla)
         conn.update(worksheet="Historial", data=df_historial)
         conn.update(worksheet="Plantel", data=df_plantel)
