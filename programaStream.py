@@ -206,24 +206,35 @@ def forma_reciente(historial, n=5):
 # ==========================================
 # --- 6. SIDEBAR ---
 # ==========================================
+
+# 1. Intentamos cargar el logo, si no existe ponemos el emoji
+if os.path.exists("img/logo.png"):
+    st.sidebar.image("img/logo.png", use_container_width=True)
+else:
+    st.sidebar.markdown("""
+        <div style='text-align:center; padding: 10px 0 20px 0;'>
+            <div style='font-size: 52px;'>⚓</div>
+        </div>
+    """, unsafe_allow_html=True)
+
+# 2. El texto del nombre del equipo
 st.sidebar.markdown("""
-    <div style='text-align:center; padding: 10px 0 20px 0;'>
-        <div style='font-size: 52px;'>⚓</div>
-        ...
+    <div style='text-align:center; margin-bottom: 20px;'>
         <h2 style='color:white; margin:0;'>REGATAS</h2>
         <p style='color:#00aae4; margin:0; font-size:11px; letter-spacing:3px;'>JUVENILES CELESTE</p>
     </div>
 """, unsafe_allow_html=True)
 
+# 3. El menú de navegación
 menu = st.sidebar.radio("NAVEGACIÓN", [
     "🏠 INICIO", "🏆 TABLA", "👤 PLANTEL", "🎥 GOLES",
     "⚠️ TARJETAS", "🔮 PREDICCIONES", "🏅 VOTAR MVP",
     "📝 CARGAR FECHA", "📅 FIXTURE"
 ])
 
+# 4. Datos del plantel para selectores
 plantel_dict = st.session_state.db["plantel"]
 jugadores_lista = [f"{n}-{d[0]}" for n, d in plantel_dict.items()]
-
 # ==========================================
 # --- 7. PÁGINAS ---
 # ==========================================
