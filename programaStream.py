@@ -107,6 +107,15 @@ if 'db' not in st.session_state:
                 "23": ["Manu", 0,0,0,0,0,0,0]
             }
         }
+def procesar_tabla(e1, g1, e2, g2):
+    t = st.session_state.db["tabla"]
+    for e, gf, gc in [(e1, g1, g2), (e2, g2, g1)]:
+        t[e]["PJ"] += 1
+        t[e]["GF"] += gf
+        t[e]["GC"] += gc
+        if gf > gc: t[e]["PTS"] += 3; t[e]["PG"] += 1
+        elif gf == gc: t[e]["PTS"] += 1; t[e]["PE"] += 1
+        else: t[e]["PP"] += 1
 
 def metric_card(title, value):
     st.markdown(f"""<div class="metric-card"><div class="metric-title">{title}</div><div class="metric-value">{value}</div></div>""", unsafe_allow_html=True)
