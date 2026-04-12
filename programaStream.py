@@ -3,6 +3,8 @@ import pandas as pd
 import json
 import os
 from streamlit_gsheets import GSheetsConnection
+import gspread
+from google.oauth2.service_account import Credentials
 
 # ==========================================
 # --- 1. CONFIGURACIÓN VISUAL (STYLE) ---
