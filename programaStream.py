@@ -75,10 +75,14 @@ def guardar_datos(estado):
         datos_p.append([k] + v)
     df_plantel = pd.DataFrame(datos_p, columns=['ID', 'Nombre', 'PJ', 'Goles', 'Asist', 'Amarillas', 'Rojas', 'MVP', 'Vallas'])
 
-    # Usamos create en lugar de update para la inicialización
-    conn.create(worksheet="Tabla", data=df_tabla)
-    conn.create(worksheet="Historial", data=df_historial)
-    conn.create(worksheet="Plantel", data=df_plantel)
+    # Intentamos una forma más directa de guardar
+    try:
+        conn.update(worksheet="Tabla", data=df_tabla)
+        conn.update(worksheet="Historial", data=df_historial)
+        conn.update(worksheet="Plantel", data=df_plantel)
+    except:
+        st.error("⚠️ Error de conexión. Revisá que el Google Sheet tenga permisos de EDITOR.")
+    
     st.cache_data.clear()
 
 if 'db' not in st.session_state:
