@@ -76,13 +76,17 @@ def guardar_datos(estado):
     df_plantel = pd.DataFrame(datos_p, columns=['ID', 'Nombre', 'PJ', 'Goles', 'Asist', 'Amarillas', 'Rojas', 'MVP', 'Vallas'])
 
     try:
+        # Forzamos la actualización de cada hoja
         conn.update(worksheet="Tabla", data=df_tabla)
         conn.update(worksheet="Historial", data=df_historial)
         conn.update(worksheet="Plantel", data=df_plantel)
-        st.success("✅ ¡Guardado en Google Sheets!")
+        
+        # Este cartel es fundamental para saber que terminó el proceso
+        st.success("🔥 ¡Sincronizado con Google Sheets!")
     except Exception as e:
-        st.error(f"❌ Error al guardar: {e}")
+        st.error(f"Hubo un problema: {e}")
     
+    # Limpiamos caché para que la próxima lectura sea fresca
     st.cache_data.clear()
 
 if 'db' not in st.session_state:
