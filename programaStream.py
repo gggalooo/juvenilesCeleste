@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+from streamlit_gsheets import GSheetsConnection
 
 # ==========================================
 # --- 1. CONFIGURACIÓN VISUAL (STYLE) ---
@@ -52,12 +53,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# ==========================================
-# --- 2. LÓGICA DE DATOS (GOOGLE SHEETS) ---
-# ==========================================
-from streamlit_gsheets import GSheetsConnection
-
-# Conexión con Google Sheets (Usa el link de tus Secrets)
+# Conexión con Google Sheets
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 class Liga:
@@ -72,17 +68,13 @@ class Liga:
         self.fixture_completo = r1 + [(r, not l) for r, l in r1]
 
 def guardar_datos(estado):
-    # Convertimos la tabla a DataFrame
     df_tabla = pd.DataFrame(estado["tabla"]).T.reset_index().rename(columns={'index': 'Equipo'})
-    # Convertimos el historial a DataFrame
     df_historial = pd.DataFrame(estado["historial"])
-    # Convertimos el plantel a DataFrame para no perder estadísticas
     datos_p = []
     for k, v in estado["plantel"].items():
         datos_p.append([k] + v)
     df_plantel = pd.DataFrame(datos_p, columns=['ID', 'Nombre', 'PJ', 'Goles', 'Asist', 'Amarillas', 'Rojas', 'MVP', 'Vallas'])
 
-    # Guardamos cada cosa en una pestaña diferente del Google Sheet
     conn.update(worksheet="Tabla", data=df_tabla)
     conn.update(worksheet="Historial", data=df_historial)
     conn.update(worksheet="Plantel", data=df_plantel)
@@ -90,11 +82,9 @@ def guardar_datos(estado):
 
 if 'db' not in st.session_state:
     try:
-        # Intentamos cargar desde Google Sheets
         df_t = conn.read(worksheet="Tabla", ttl=0)
         df_h = conn.read(worksheet="Historial", ttl=0)
         df_p = conn.read(worksheet="Plantel", ttl=0)
-        
         st.session_state.db = {
             "tabla": df_t.set_index('Equipo').to_dict('index'),
             "historial": df_h.to_dict('records'),
@@ -102,12 +92,20 @@ if 'db' not in st.session_state:
             "plantel": df_p.set_index('ID').to_dict('list')
         }
     except:
-        # Si las pestañas no existen o fallan, cargamos el estado inicial
         st.session_state.db = {
             "fecha_actual": 1,
             "historial": [],
             "tabla": {eq: {"PTS": 0, "PJ": 0, "PG": 0, "PE": 0, "PP": 0, "GF": 0, "GC": 0} for eq in Liga().equipos},
-            "plantel": {str(i): [n, 0,0,0,0,0,0,0] for i, n in enumerate(["Toro", "Ochoa", "Peña", "Caputo", "Amato", "Basto", "Tano", "Ciro", "Rocca", "Beni", "Feli", "Juani Blanco", "Galo", "Capri", "Vigna", "Lucio", "Mateo", "Zurdo", "Pena", "Churri", "Giacovino", "Manu"], 1)}
+            "plantel": {
+                "1": ["Toro", 0,0,0,0,0,0,0], "2": ["Ochoa", 0,0,0,0,0,0,0], "3": ["Peña", 0,0,0,0,0,0,0],
+                "4": ["Caputo", 0,0,0,0,0,0,0], "5": ["Amato", 0,0,0,0,0,0,0], "6": ["Basto", 0,0,0,0,0,0,0],
+                "7": ["Tano", 0,0,0,0,0,0,0], "8": ["Ciro", 0,0,0,0,0,0,0], "9": ["Rocca", 0,0,0,0,0,0,0],
+                "10": ["Beni", 0,0,0,0,0,0,0], "11": ["Feli", 0,0,0,0,0,0,0], "12": ["Juani Blanco", 0,0,0,0,0,0,0],
+                "13": ["Galo", 0,0,0,0,0,0,0], "14": ["Capri", 0,0,0,0,0,0,0], "15": ["Vigna", 0,0,0,0,0,0,0],
+                "16": ["Lucio", 0,0,0,0,0,0,0], "17": ["Mateo", 0,0,0,0,0,0,0], "18": ["Zurdo", 0,0,0,0,0,0,0],
+                "19": ["Pena", 0,0,0,0,0,0,0], "20": ["Giacovino", 0,0,0,0,0,0,0], "21": ["Churri", 0,0,0,0,0,0,0],
+                "22": ["Manu", 0,0,0,0,0,0,0]
+            }
         }
 
 def metric_card(title, value):
@@ -238,7 +236,7 @@ elif menu == "📝 CARGAR FECHA":
     # --- SISTEMA DE SEGURIDAD ---
     password = st.text_input("Introduzca la clave para editar:", type="password")
     
-    if password == "regatas123": 
+    if password == st.secrets["auth"]["admin_password"]:
         st.success("✅ Acceso concedido, Capitán.")
         t1, t2 = st.tabs(["🔴 REGATAS", "🔵 LIGA"])
         
