@@ -74,10 +74,10 @@ class Liga:
         self.fixture_completo = r1 + [(r, not l) for r, l in r1]
         # *** AJUSTÁ ESTAS FECHAS A TU CALENDARIO REAL ***
         self.fechas_datetime = [
-            datetime(2025, 4, 5), datetime(2025, 4, 12), datetime(2025, 4, 19),
-            datetime(2025, 4, 26), datetime(2025, 5, 3), datetime(2025, 5, 10),
-            datetime(2025, 5, 17), datetime(2025, 5, 24), datetime(2025, 5, 31),
-            datetime(2025, 6, 7), datetime(2025, 6, 14), datetime(2025, 6, 21),
+            datetime(2025, 4, 11), datetime(2025, 4, 18), datetime(2025, 4, 25),
+            datetime(2025, 5, 2), datetime(2025, 5, 9), datetime(2025, 5, 16),
+            datetime(2025, 5, 23), datetime(2025, 5, 30), datetime(2025, 5, 6),
+            datetime(2025, 6, 13), datetime(2025, 6, 14), datetime(2025, 6, 21),
             datetime(2025, 6, 28), datetime(2025, 7, 5), datetime(2025, 7, 12),
             datetime(2025, 7, 19), datetime(2025, 7, 26), datetime(2025, 8, 2),
             datetime(2025, 8, 9), datetime(2025, 8, 16), datetime(2025, 8, 23),
