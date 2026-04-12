@@ -53,8 +53,13 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # ==========================================
-# --- 2. LÓGICA DE DATOS ---
+# --- 2. LÓGICA DE DATOS (GOOGLE SHEETS) ---
 # ==========================================
+from streamlit_gsheets import GSheetsConnection
+
+# Conexión con Google Sheets (Usa el link de tus Secrets)
+conn = st.connection("gsheets", type=GSheetsConnection)
+
 class Liga:
     def __init__(self):
         self.equipos = ["Regatas Celeste", "Club Harrods", "Centro Galicia", "Banco Ciudad Negro", 
@@ -67,38 +72,43 @@ class Liga:
         self.fixture_completo = r1 + [(r, not l) for r, l in r1]
 
 def guardar_datos(estado):
-    with open("datos_regatas_web.json", "w") as f:
-        json.dump(estado, f, indent=4)
+    # Convertimos la tabla a DataFrame
+    df_tabla = pd.DataFrame(estado["tabla"]).T.reset_index().rename(columns={'index': 'Equipo'})
+    # Convertimos el historial a DataFrame
+    df_historial = pd.DataFrame(estado["historial"])
+    # Convertimos el plantel a DataFrame para no perder estadísticas
+    datos_p = []
+    for k, v in estado["plantel"].items():
+        datos_p.append([k] + v)
+    df_plantel = pd.DataFrame(datos_p, columns=['ID', 'Nombre', 'PJ', 'Goles', 'Asist', 'Amarillas', 'Rojas', 'MVP', 'Vallas'])
+
+    # Guardamos cada cosa en una pestaña diferente del Google Sheet
+    conn.update(worksheet="Tabla", data=df_tabla)
+    conn.update(worksheet="Historial", data=df_historial)
+    conn.update(worksheet="Plantel", data=df_plantel)
+    st.cache_data.clear()
 
 if 'db' not in st.session_state:
-    if os.path.exists("datos_regatas_web.json"):
-        with open("datos_regatas_web.json", "r") as f:
-            st.session_state.db = json.load(f)
-            # Inyectar historial si no existe
-            if "historial" not in st.session_state.db:
-                st.session_state.db["historial"] = []
-                # Si ya se jugó la F1, recuperamos el resultado de la tabla
-                if st.session_state.db["tabla"]["Regatas Celeste"]["PJ"] > 0:
-                    st.session_state.db["historial"].append({
-                        "rival": "Sitas Rojo", 
-                        "g_reg": st.session_state.db["tabla"]["Regatas Celeste"]["GF"], 
-                        "g_riv": st.session_state.db["tabla"]["Regatas Celeste"]["GC"]
-                    })
-    else:
+    try:
+        # Intentamos cargar desde Google Sheets
+        df_t = conn.read(worksheet="Tabla", ttl=0)
+        df_h = conn.read(worksheet="Historial", ttl=0)
+        df_p = conn.read(worksheet="Plantel", ttl=0)
+        
+        st.session_state.db = {
+            "tabla": df_t.set_index('Equipo').to_dict('index'),
+            "historial": df_h.to_dict('records'),
+            "fecha_actual": len(df_h) + 1,
+            "plantel": df_p.set_index('ID').to_dict('list')
+        }
+    except:
+        # Si las pestañas no existen o fallan, cargamos el estado inicial
         st.session_state.db = {
             "fecha_actual": 1,
             "historial": [],
             "tabla": {eq: {"PTS": 0, "PJ": 0, "PG": 0, "PE": 0, "PP": 0, "GF": 0, "GC": 0} for eq in Liga().equipos},
             "plantel": {str(i): [n, 0,0,0,0,0,0,0] for i, n in enumerate(["Toro", "Ochoa", "Peña", "Caputo", "Amato", "Basto", "Tano", "Ciro", "Rocca", "Beni", "Feli", "Juani Blanco", "Galo", "Capri", "Vigna", "Lucio", "Mateo", "Zurdo", "Pena", "Churri", "Giacovino", "Manu"], 1)}
         }
-
-def procesar_tabla(e1, g1, e2, g2):
-    t = st.session_state.db["tabla"]
-    for e, gf, gc in [(e1, g1, g2), (e2, g2, g1)]:
-        t[e]["PJ"] += 1; t[e]["GF"] += gf; t[e]["GC"] += gc
-        if gf > gc: t[e]["PTS"] += 3; t[e]["PG"] += 1
-        elif gf == gc: t[e]["PTS"] += 1; t[e]["PE"] += 1
-        else: t[e]["PP"] += 1
 
 def metric_card(title, value):
     st.markdown(f"""<div class="metric-card"><div class="metric-title">{title}</div><div class="metric-value">{value}</div></div>""", unsafe_allow_html=True)
